@@ -12,6 +12,8 @@ This project includes Supabase Edge Functions that can be deployed to your Supab
       - index.ts      # Records coding session time and returns stats
     /get-expected-time
       - index.ts      # Retrieves expected completion time for a level
+    /ai-chat
+      - index.ts      # Connects to external AI chat API
 ```
 
 ## Local Development
@@ -73,6 +75,24 @@ create table public.levels (
   codeLines text,
   created_at timestamp with time zone default now()
 );
+```
+
+## Secrets Management
+
+This project uses the following secrets:
+
+- `AI_API_KEY`: Your AI provider API key
+
+To set secrets locally for development:
+
+```bash
+supabase secrets set AI_API_KEY=your-api-key
+```
+
+To set secrets for production:
+
+```bash
+supabase secrets set AI_API_KEY=your-api-key --project-ref your-project-ref
 ```
 
 ## Deployment
