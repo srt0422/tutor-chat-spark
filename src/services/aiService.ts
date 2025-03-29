@@ -7,7 +7,9 @@ export interface AIChatRequest {
     role: 'user' | 'assistant' | 'system';
     content: string;
   }[];
-  model?: string;
+  problemType?: string;
+  level?: string;
+  problemMode?: 'guided' | 'unguided';
 }
 
 export interface AIChatResponse {
@@ -20,86 +22,63 @@ export interface AIChatResponse {
   }[];
 }
 
-const SYSTEM_PROMPT = `You are an expert coding tutor specializing in the Industry Coding Skills Evaluation Framework. 
-This framework assesses coding skills at 4 progressive levels:
-
-Level 1 - Initial Design & Basic Functions:
-- Basic implementation, simple methods
-- Focus on conditions, loops, type conversions
-- Expected time: 10-15 minutes, 15-20 lines of code
-
-Level 2 - Data Structures & Data Processing:
-- Implement data processing functions
-- Focus on calculations, aggregations, sorting
-- Expected time: 20-30 minutes, 40-45 lines of code
-
-Level 3 - Refactoring & Encapsulation:
-- Extend and maintain existing codebase
-- Focus on refactoring and encapsulation techniques
-- Expected time: 30-60 minutes, 90-130 lines of code
-
-Level 4 - Extending Design & Functionality:
-- Enhance functionality with backward compatibility
-- Focus on efficient code design and performance
-- Expected time: 60+ minutes, 110-160 lines of code
-
-When helping users, guide them through problem-solving without giving complete solutions immediately. 
-Encourage them to build incrementally, starting with Level 1 and progressing.
-
-File operation functions to focus on implementing:
-- FILE_UPLOAD(file_name, size)
-- FILE_GET(file_name)
-- FILE_COPY(source, dest)
-- FILE_SEARCH(prefix)
-- FILE_UPLOAD_AT(timestamp, file_name, file_size, ttl)
-- FILE_GET_AT(timestamp, file_name)
-- FILE_COPY_AT(timestamp, file_from, file_to)
-- FILE_SEARCH_AT(timestamp, prefix)
-- ROLLBACK(timestamp)
-
-Provide clear explanations, code examples, and guidance aligned with the level they're working on.`;
-
-export const getAIResponse = async (messages: AIChatRequest['messages']): Promise<string> => {
+/**
+ * Sends a message to the AI chat service
+ * @param request The chat request object containing messages and context
+ * @returns Promise with the AI's response text
+ */
+export const getAIResponse = async (request: AIChatRequest): Promise<string> => {
   try {
-    // Add system message at the beginning if it doesn't exist
-    const messagesWithSystem = messages.some(m => m.role === 'system')
-      ? messages
-      : [{ role: 'system', content: SYSTEM_PROMPT }, ...messages];
-
-    try {
-      // Use Supabase Edge Function to call AI service
-      const { data, error } = await supabaseClient.functions.invoke('ai-chat', {
-        body: { messages: messagesWithSystem }
-      });
-
-      if (error) {
-        throw new Error(`Supabase function error: ${error.message}`);
+    // Use Supabase Edge Function to call AI service
+    const { data, error } = await supabaseClient.functions.invoke('ai-chat', {
+      body: { 
+        messages: request.messages,
+        problemType: request.problemType,
+        level: request.level,
+        problemMode: request.problemMode
       }
+    });
 
-      // Extract the response based on OpenRouter's response format
-      if (data?.choices && data.choices.length > 0) {
-        return data.choices[0].message.content;
-      }
-
-      throw new Error('Invalid response format from AI service');
-    } catch (serviceError) {
-      console.error('Error with AI service:', serviceError);
-      // Fall back to mock responses if the service fails
-      return getMockResponse(messages[messages.length - 1].content);
+    if (error) {
+      throw new Error(`Supabase function error: ${error.message}`);
     }
+
+    // Extract the response based on OpenRouter's response format
+    if (data?.choices && data.choices.length > 0) {
+      return data.choices[0].message.content;
+    }
+
+    throw new Error('Invalid response format from AI service');
   } catch (error) {
     console.error('Error getting AI response:', error);
     toast.error('Failed to get AI response. Please try again.');
-    return "I'm having trouble connecting to my knowledge base right now. Please try again in a moment.";
+    // Fall back to mock responses if the service fails
+    return getMockResponse(
+      request.messages[request.messages.length - 1].content,
+      request.problemType,
+      request.level,
+      request.problemMode
+    );
   }
 };
 
-// Get mock responses based on keywords in the user's question
-const getMockResponse = (userQuestion: string): string => {
+// Get mock responses based on keywords in the user's question and context
+const getMockResponse = (
+  userQuestion: string,
+  problemType?: string,
+  level?: string,
+  problemMode?: 'guided' | 'unguided'
+): string => {
   userQuestion = userQuestion.toLowerCase();
   
+  // Include context in response if available
+  let contextPrefix = '';
+  if (problemType || level || problemMode) {
+    contextPrefix = `[Context: ${problemType || 'General'} | Level ${level || 'Any'} | ${problemMode || 'Standard'} Mode]\n\n`;
+  }
+  
   if (userQuestion.includes('level 1') || userQuestion.includes('file_upload') || userQuestion.includes('file_get')) {
-    return `
+    return `${contextPrefix}
 Let's focus on Level 1 - Initial Design & Basic Functions.
 
 For implementing the basic file operations like FILE_UPLOAD and FILE_GET, you'll want to start with simple functions that handle the core functionality without worrying about advanced features yet.
@@ -117,12 +96,12 @@ Here's an example implementation for FILE_UPLOAD:
 function FILE_UPLOAD(fileName, fileSize) {
   // Check if file already exists
   if (fileExists(fileName)) {
-    throw new Error(\`File ${fileName} already exists\`);
+    throw new Error(\`File \${fileName} already exists\`);
   }
   
   // In a real implementation, this would make an API call
   // to upload the file to a server
-  console.log(\`Uploading file: ${fileName}, size: ${fileSize} bytes\`);
+  console.log(\`Uploading file: \${fileName}, size: \${fileSize} bytes\`);
   
   // Store file metadata in our file system
   fileSystem[fileName] = {
@@ -171,8 +150,8 @@ These functions cover the basic requirements for Level 1. Try implementing them 
 `;
   }
   
-  if (userQuestion.includes('level 2') || userQuestion.includes('file_search') || userQuestion.includes('data structure')) {
-    return `
+  if (userQuestion.includes('level 2') || userQuestion.includes('file_search') || userQuestion.includes('data_structure')) {
+    return `${contextPrefix}
 For Level 2 - Data Structures & Data Processing, we'll focus on implementing FILE_SEARCH which requires more complex data processing.
 
 Here's how you might implement the FILE_SEARCH function:
@@ -234,7 +213,7 @@ Remember, Level 2 focuses on data processing without involving complex algorithm
   }
   
   if (userQuestion.includes('level 3') || userQuestion.includes('refactor') || userQuestion.includes('file_upload_at')) {
-    return `
+    return `${contextPrefix}
 For Level 3 - Refactoring & Encapsulation, we'll build on our previous implementations by adding timestamp functionality while maintaining backward compatibility.
 
 Let's implement FILE_UPLOAD_AT and refactor our existing code:
@@ -374,7 +353,7 @@ The class structure gives us a clean way to organize related functionality and m
   }
   
   if (userQuestion.includes('level 4') || userQuestion.includes('rollback') || userQuestion.includes('extending')) {
-    return `
+    return `${contextPrefix}
 For Level 4 - Extending Design & Functionality, we'll implement the ROLLBACK function and enhance our system with more robust error handling and performance optimizations.
 
 Here's an implementation that builds on our Level 3 code:
@@ -600,7 +579,7 @@ The key aspects here are extending the design while maintaining backward compati
 `;
   }
   
-  return `
+  return `${contextPrefix}
 Let me explain a bit about the Industry Coding Skills Evaluation Framework.
 
 This framework is designed to assess coding skills across four progressive levels:
