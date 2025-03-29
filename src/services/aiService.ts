@@ -1,3 +1,4 @@
+
 import { toast } from "sonner";
 import { supabaseClient } from './supabaseClient';
 
@@ -284,7 +285,7 @@ class FileSystem {
     
     // Check if file already exists
     if (this.fileExists(fileName)) {
-      throw new Error(\`File ${fileName} already exists\`);
+      throw new Error(\`File \${fileName} already exists\`);
     }
     
     // Create file entry
@@ -447,9 +448,9 @@ class AdvancedFileSystem {
       this._recalculateTTLs(targetTimestamp);
       
       return true;
-    } catch (err) {
+    } catch (error) {
       this._logEvent('ROLLBACK', { timestamp }, false);
-      throw new Error(\`Rollback failed: ${err.message}\`);
+      throw new Error(\`Rollback failed: \${error.message}\`);
     }
   }
   
@@ -497,7 +498,7 @@ class AdvancedFileSystem {
       
       // Check if file already exists
       if (this.fileExists(fileName)) {
-        throw new Error(\`File ${fileName} already exists\`);
+        throw new Error(\`File \${fileName} already exists\`);
       }
       
       // Create file entry
@@ -516,9 +517,9 @@ class AdvancedFileSystem {
       this._logEvent('FILE_UPLOAD_AT', { timestamp, fileName, fileSize, ttl }, true);
       
       return true;
-    } catch (err) {
+    } catch (error) {
       this._logEvent('FILE_UPLOAD_AT', { timestamp, fileName, fileSize, ttl }, false);
-      throw err;
+      throw error;
     }
   }
   

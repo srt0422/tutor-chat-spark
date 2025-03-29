@@ -6,7 +6,7 @@ import CodeEditor from '@/components/CodeEditor';
 import LevelSelector from '@/components/LevelSelector';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
-import { getAIResponse } from '@/services/aiService';
+import { getAIResponse, AIChatRequest } from '@/services/aiService';
 import { sendTutorMessage, createTutorSession, codingTopics } from '@/services/tutorService';
 import { codingLevels, codeExamples } from '@/services/mockData';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
@@ -73,8 +73,12 @@ const Index = () => {
         
         messagesForAI.push({ role: 'user', content: message });
         
-        // Get AI response
-        response = await getAIResponse(messagesForAI);
+        // Get AI response - FIX: Create proper AIChatRequest object
+        const aiRequest: AIChatRequest = {
+          messages: messagesForAI
+        };
+        
+        response = await getAIResponse(aiRequest);
       }
       
       // Add AI response to chat
