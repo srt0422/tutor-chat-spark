@@ -1,8 +1,7 @@
 import { toast } from "sonner";
+import { supabaseClient } from './supabaseClient';
 
-// Use environment variables for API keys in production
-const API_KEY = ""; // Would be loaded from env variables in production
-
+// Types for AI chat requests and responses
 export interface AIChatRequest {
   messages: {
     role: 'user' | 'assistant' | 'system';
@@ -67,35 +66,25 @@ export const getAIResponse = async (messages: AIChatRequest['messages']): Promis
       ? messages
       : [{ role: 'system', content: SYSTEM_PROMPT }, ...messages];
 
-    // Try to use Hugging Face API
     try {
-      const response = await fetch('https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          inputs: formatMessagesForHuggingFace(messagesWithSystem),
-          parameters: {
-            max_new_tokens: 1024,
-            temperature: 0.7,
-            top_p: 0.95,
-            do_sample: true,
-          }
-        }),
+      // Use Supabase Edge Function to call AI service
+      const { data, error } = await supabaseClient.functions.invoke('ai-chat', {
+        body: { messages: messagesWithSystem }
       });
 
-      if (!response.ok) {
-        throw new Error(`Hugging Face API error: ${response.statusText}`);
+      if (error) {
+        throw new Error(`Supabase function error: ${error.message}`);
       }
 
-      const result = await response.json();
-      return result[0].generated_text.split('<assistant>')[1]?.trim() || 
-             "I apologize, but I couldn't generate a proper response. Please try again.";
-    } catch (error) {
-      console.error('Error with Hugging Face API, falling back to mockResponse:', error);
-      // If Hugging Face fails, return a mock response
+      // Extract the response based on OpenRouter's response format
+      if (data?.choices && data.choices.length > 0) {
+        return data.choices[0].message.content;
+      }
+
+      throw new Error('Invalid response format from AI service');
+    } catch (serviceError) {
+      console.error('Error with AI service:', serviceError);
+      // Fall back to mock responses if the service fails
       return getMockResponse(messages[messages.length - 1].content);
     }
   } catch (error) {
@@ -103,26 +92,6 @@ export const getAIResponse = async (messages: AIChatRequest['messages']): Promis
     toast.error('Failed to get AI response. Please try again.');
     return "I'm having trouble connecting to my knowledge base right now. Please try again in a moment.";
   }
-};
-
-// Format messages for Hugging Face models
-const formatMessagesForHuggingFace = (messages: AIChatRequest['messages']): string => {
-  let prompt = '';
-  
-  messages.forEach(message => {
-    if (message.role === 'system') {
-      prompt += `<system>\n${message.content}\n</system>\n\n`;
-    } else if (message.role === 'user') {
-      prompt += `<user>\n${message.content}\n</user>\n\n`;
-    } else if (message.role === 'assistant') {
-      prompt += `<assistant>\n${message.content}\n</assistant>\n\n`;
-    }
-  });
-  
-  // Add the final assistant tag to indicate where the model should generate
-  prompt += '<assistant>\n';
-  
-  return prompt;
 };
 
 // Get mock responses based on keywords in the user's question
@@ -499,9 +468,9 @@ class AdvancedFileSystem {
       this._recalculateTTLs(targetTimestamp);
       
       return true;
-    } catch (error) {
+    } catch (err) {
       this._logEvent('ROLLBACK', { timestamp }, false);
-      throw new Error(\`Rollback failed: ${error.message}\`);
+      throw new Error(\`Rollback failed: ${err.message}\`);
     }
   }
   
@@ -568,9 +537,9 @@ class AdvancedFileSystem {
       this._logEvent('FILE_UPLOAD_AT', { timestamp, fileName, fileSize, ttl }, true);
       
       return true;
-    } catch (error) {
+    } catch (err) {
       this._logEvent('FILE_UPLOAD_AT', { timestamp, fileName, fileSize, ttl }, false);
-      throw error;
+      throw err;
     }
   }
   

@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
     );
 
     // Get message content from the request
-    const { messages } = await req.json();
+    const { messages, problemType, level, problemMode } = await req.json();
 
     // If no messages were provided, throw an error
     if (!messages || !Array.isArray(messages)) {
@@ -42,23 +42,47 @@ Deno.serve(async (req) => {
       throw new Error("AI API key not configured");
     }
 
-    // Call the external AI API
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    // Create a system message based on the current problem context
+    let systemMessage = getSystemPrompt(problemType, level, problemMode);
+    
+    // Prepare final messages array with system prompt
+    const finalMessages = messages.some(m => m.role === 'system') 
+      ? messages 
+      : [{ role: 'system', content: systemMessage }, ...messages];
+
+    // Call the OpenRouter API (compatible with OpenAI API)
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01"
+        "Authorization": `Bearer ${apiKey}`,
+        "HTTP-Referer": Deno.env.get("SITE_URL") || "http://localhost:5173",
+        "X-Title": "Industry Coding Tutor"
       },
       body: JSON.stringify({
-        model: "claude-3-opus-20240229",
-        messages: messages,
-        max_tokens: 1024
+        model: "openai/gpt-4o", // Default to GPT-4o, but can be changed
+        messages: finalMessages,
+        max_tokens: 1024,
+        temperature: 0.7,
       }),
     });
 
     // Get the AI response
     const aiResponse = await response.json();
+
+    // Save interaction to analytics table if available
+    try {
+      await supabaseClient.from('chat_interactions').insert({
+        problem_type: problemType || null,
+        level: level || null,
+        problem_mode: problemMode || null,
+        message_count: messages.length,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (analyticsError) {
+      // Silently fail if analytics table doesn't exist
+      console.error("Analytics error:", analyticsError);
+    }
 
     return new Response(
       JSON.stringify(aiResponse),
@@ -67,9 +91,9 @@ Deno.serve(async (req) => {
         status: 200,
       }
     );
-  } catch (error) {
+  } catch (err) {
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: err.message }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 400,
@@ -77,3 +101,50 @@ Deno.serve(async (req) => {
     );
   }
 });
+
+// Helper function to generate appropriate system prompts based on context
+function getSystemPrompt(problemType: string | null, level: string | null, problemMode: string | null): string {
+  let basePrompt = `You are an expert coding tutor specializing in the Industry Coding Skills Evaluation Framework. 
+This framework assesses coding skills at 4 progressive levels:
+
+Level 1 - Initial Design & Basic Functions:
+- Basic implementation, simple methods
+- Focus on conditions, loops, type conversions
+- Expected time: 10-15 minutes, 15-20 lines of code
+
+Level 2 - Data Structures & Data Processing:
+- Implement data processing functions
+- Focus on calculations, aggregations, sorting
+- Expected time: 20-30 minutes, 40-45 lines of code
+
+Level 3 - Refactoring & Encapsulation:
+- Extend and maintain existing codebase
+- Focus on refactoring and encapsulation techniques
+- Expected time: 30-60 minutes, 90-130 lines of code
+
+Level 4 - Extending Design & Functionality:
+- Enhance functionality with backward compatibility
+- Focus on efficient code design and performance
+- Expected time: 60+ minutes, 110-160 lines of code`;
+
+  // If we have a specific problem type
+  if (problemType) {
+    basePrompt += `\n\nYou are currently helping with the following data structure or principle: ${problemType}.`;
+  }
+
+  // If we have a specific level
+  if (level) {
+    basePrompt += `\n\nThe current skill level focus is: Level ${level}.`;
+  }
+
+  // If we have a specific problem mode (guided vs unguided)
+  if (problemMode === 'guided') {
+    basePrompt += `\n\nThis is a GUIDED problem. Provide step-by-step instructions, one at a time. Wait for the user to implement each step before providing the next one. Offer hints rather than complete solutions.`;
+  } else if (problemMode === 'unguided') {
+    basePrompt += `\n\nThis is an UNGUIDED problem. Only provide help when explicitly asked. Let the user work through the problem on their own, but be ready to answer specific questions and provide guidance when requested.`;
+  }
+
+  basePrompt += `\n\nAlways make your explanations clear, concise, and educational. Focus on teaching underlying principles rather than just providing solutions.`;
+
+  return basePrompt;
+}

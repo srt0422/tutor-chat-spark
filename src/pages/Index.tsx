@@ -7,6 +7,7 @@ import LevelSelector from '@/components/LevelSelector';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
 import { getAIResponse } from '@/services/aiService';
+import { sendTutorMessage, createTutorSession, codingTopics } from '@/services/tutorService';
 import { codingLevels, codeExamples } from '@/services/mockData';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,11 @@ const Index = () => {
   const [language, setLanguage] = useState<string>('javascript');
   const [timerActive, setTimerActive] = useState<boolean>(false);
   const [timerStartTime, setTimerStartTime] = useState<number | null>(null);
+  const [tutorSession, setTutorSession] = useState<{
+    topic: string;
+    level: number;
+    mode: 'guided' | 'unguided';
+  } | null>(null);
 
   const handleSendMessage = async (message: string) => {
     // Add user message to chat
@@ -41,15 +47,35 @@ const Index = () => {
     setIsLoading(true);
     
     try {
-      // Prepare messages for AI service
-      const messagesForAI = messages
-        .slice(-6) // Only use the last 6 messages for context
-        .map((msg) => ({ role: msg.role, content: msg.content }));
+      let response;
       
-      messagesForAI.push({ role: 'user', content: message });
-      
-      // Get AI response
-      const response = await getAIResponse(messagesForAI);
+      // If we're in a tutoring session, use the tutor service
+      if (tutorSession) {
+        // Prepare messages for tutor service
+        const messagesForTutor = messages
+          .slice(-6) // Only use the last 6 messages for context
+          .map((msg) => ({ role: msg.role, content: msg.content }));
+        
+        messagesForTutor.push({ role: 'user', content: message });
+        
+        // Get tutor response
+        response = await sendTutorMessage(
+          messagesForTutor,
+          tutorSession.topic,
+          tutorSession.level,
+          tutorSession.mode
+        );
+      } else {
+        // Use regular AI service if not in tutoring mode
+        const messagesForAI = messages
+          .slice(-6) // Only use the last 6 messages for context
+          .map((msg) => ({ role: msg.role, content: msg.content }));
+        
+        messagesForAI.push({ role: 'user', content: message });
+        
+        // Get AI response
+        response = await getAIResponse(messagesForAI);
+      }
       
       // Add AI response to chat
       const aiMessage: Message = {
@@ -145,6 +171,46 @@ const Index = () => {
     }
   };
 
+  const handleStartTutoring = (topic: string, level: number, mode: 'guided' | 'unguided') => {
+    // Create a new tutoring session
+    setTutorSession({
+      topic,
+      level,
+      mode
+    });
+    
+    // Get the session data
+    const session = createTutorSession(topic, level, mode);
+    
+    // Reset messages and add the initial tutor message
+    setMessages([
+      {
+        id: uuidv4(),
+        role: 'assistant',
+        content: session.messageHistory[0].content,
+        timestamp: new Date(),
+      }
+    ]);
+    
+    // Map level to the appropriate format for the code editor
+    const levelMapping: Record<number, string> = {
+      1: 'level-1',
+      2: 'level-2',
+      3: 'level-3',
+      4: 'level-4'
+    };
+    
+    // Update selected level in the editor
+    setSelectedLevel(levelMapping[level] || 'level-1');
+    
+    // Reset timer
+    setTimerActive(true);
+    setTimerStartTime(Date.now());
+    
+    const topicName = codingTopics.find(t => t.id === topic)?.name || topic;
+    toast.success(`Started ${mode} tutoring session for ${topicName} (Level ${level})`);
+  };
+
   return (
     <Layout>
       <ResizablePanelGroup direction="horizontal" className="min-h-[calc(100vh-128px)]">
@@ -155,7 +221,9 @@ const Index = () => {
               messages={messages} 
               onSendMessage={handleSendMessage} 
               onRequestCodeHelp={handleRequestCodeHelp}
+              onStartTutoring={handleStartTutoring}
               isLoading={isLoading}
+              currentTutorSession={tutorSession}
             />
           </div>
         </ResizablePanel>
