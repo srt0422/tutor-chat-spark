@@ -4,15 +4,13 @@ import Layout from '@/components/Layout';
 import ChatInterface, { Message } from '@/components/ChatInterface';
 import CodeEditor from '@/components/CodeEditor';
 import LevelSelector from '@/components/LevelSelector';
-import FrameworkInfo from '@/components/FrameworkInfo';
-import { Card } from '@/components/ui/card';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
 import { getAIResponse } from '@/services/aiService';
 import { codingLevels, codeExamples } from '@/services/mockData';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
-import { PanelRightOpen, PanelRightClose } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import Timer from '@/components/Timer';
 
 const Index = () => {
   const [messages, setMessages] = useState<Message[]>([
@@ -27,7 +25,8 @@ const Index = () => {
   const [selectedLevel, setSelectedLevel] = useState<string>('level-1');
   const [code, setCode] = useState<string>(codeExamples['level-1-js']?.code || '// Your code here');
   const [language, setLanguage] = useState<string>('javascript');
-  const [showInfo, setShowInfo] = useState<boolean>(true);
+  const [timerActive, setTimerActive] = useState<boolean>(false);
+  const [timerStartTime, setTimerStartTime] = useState<number | null>(null);
 
   const handleSendMessage = async (message: string) => {
     // Add user message to chat
@@ -110,11 +109,40 @@ const Index = () => {
 
   const handleLevelChange = (levelId: string) => {
     setSelectedLevel(levelId);
+    
+    // Reset and start timer when level changes
+    setTimerActive(true);
+    setTimerStartTime(Date.now());
+    
+    // Find the selected level info
+    const level = codingLevels.find(l => l.id === levelId);
+    
+    // Add assistant message with time expectations
+    if (level) {
+      const assistantMessage: Message = {
+        id: uuidv4(),
+        role: 'assistant',
+        content: `You've selected ${level.name}. This level typically takes ${level.timeEstimate} to complete. I'll guide you through each step. The timer has started - let me know if you need any assistance!`,
+        timestamp: new Date(),
+      };
+      
+      setMessages((prev) => [...prev, assistantMessage]);
+    }
+    
     toast.info(`Switched to ${codingLevels.find(l => l.id === levelId)?.name}`);
   };
 
-  const toggleInfoPanel = () => {
-    setShowInfo(!showInfo);
+  const handleTimerToggle = () => {
+    setTimerActive(prev => !prev);
+    
+    if (!timerActive) {
+      // Starting the timer
+      setTimerStartTime(Date.now());
+      toast.info('Timer started');
+    } else {
+      // Stopping the timer
+      toast.info('Timer paused');
+    }
   };
 
   return (
@@ -137,11 +165,18 @@ const Index = () => {
         {/* Code Editor Panel */}
         <ResizablePanel defaultSize={60} minSize={40}>
           <div className="h-full flex flex-col">
-            <LevelSelector 
-              levels={codingLevels}
-              selectedLevel={selectedLevel}
-              onLevelChange={handleLevelChange}
-            />
+            <div className="flex justify-between items-center px-4 py-2 border-b">
+              <LevelSelector 
+                levels={codingLevels}
+                selectedLevel={selectedLevel}
+                onLevelChange={handleLevelChange}
+              />
+              <Timer 
+                active={timerActive} 
+                startTime={timerStartTime} 
+                onToggle={handleTimerToggle} 
+              />
+            </div>
             <div className="flex-1 relative">
               <CodeEditor 
                 initialCode={code} 
@@ -149,23 +184,6 @@ const Index = () => {
                 onRun={handleRunCode}
                 language={language}
               />
-              
-              <div className="absolute top-3 right-3 z-10">
-                <Button 
-                  variant="secondary" 
-                  size="sm" 
-                  className="h-8 px-2"
-                  onClick={toggleInfoPanel}
-                >
-                  {showInfo ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
-                </Button>
-              </div>
-              
-              {showInfo && (
-                <div className="absolute top-12 right-3 w-72 z-10">
-                  <FrameworkInfo />
-                </div>
-              )}
             </div>
           </div>
         </ResizablePanel>

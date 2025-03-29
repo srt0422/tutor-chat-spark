@@ -2,6 +2,7 @@
 import React from 'react';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Level {
   id: string;
@@ -38,13 +39,15 @@ const LevelSelector: React.FC<LevelSelectorProps> = ({
     }
   };
 
+  const selectedLevelInfo = levels.find(l => l.id === selectedLevel);
+
   return (
-    <div className="w-full px-4 py-2">
+    <div className="flex items-center gap-2">
       <Select
         value={selectedLevel}
         onValueChange={onLevelChange}
       >
-        <SelectTrigger>
+        <SelectTrigger className="w-[220px]">
           <SelectValue placeholder="Select a coding level" />
         </SelectTrigger>
         <SelectContent>
@@ -64,14 +67,22 @@ const LevelSelector: React.FC<LevelSelectorProps> = ({
         </SelectContent>
       </Select>
       
-      {selectedLevel && (
-        <div className="mt-2 text-sm text-muted-foreground">
-          <p>{levels.find(l => l.id === selectedLevel)?.description}</p>
-          <div className="flex gap-4 mt-1">
-            <span>⏱️ {levels.find(l => l.id === selectedLevel)?.timeEstimate}</span>
-            <span>📝 {levels.find(l => l.id === selectedLevel)?.codeLines}</span>
-          </div>
-        </div>
+      {selectedLevelInfo && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Badge variant="outline" className="cursor-help">
+              {selectedLevelInfo.timeEstimate}
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p className="font-medium">{selectedLevelInfo.name}</p>
+            <p className="text-sm text-muted-foreground">{selectedLevelInfo.description}</p>
+            <div className="flex gap-4 mt-1 text-xs">
+              <span>⏱️ {selectedLevelInfo.timeEstimate}</span>
+              <span>📝 {selectedLevelInfo.codeLines}</span>
+            </div>
+          </TooltipContent>
+        </Tooltip>
       )}
     </div>
   );
