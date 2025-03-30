@@ -4,6 +4,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { PlayIcon, DownloadIcon, SaveIcon } from 'lucide-react';
 import { toast } from "sonner";
+import 'codemirror/lib/codemirror.css';
+import 'codemirror/theme/material.css';
+import 'codemirror/theme/eclipse.css';
+import 'codemirror/addon/edit/closebrackets';
+import 'codemirror/addon/edit/matchbrackets';
 
 interface CodeEditorProps {
   initialCode: string;
@@ -12,6 +17,44 @@ interface CodeEditorProps {
   language: string;
   darkMode?: boolean;
 }
+
+// Pre-import CodeMirror to speed up initialization
+let CodeMirrorLib: any = null;
+
+// Preload CodeMirror once for the entire application
+const preloadCodeMirror = async () => {
+  if (!CodeMirrorLib) {
+    try {
+      CodeMirrorLib = await import('codemirror');
+      // Load common addons that all languages will use
+      await import('codemirror/addon/edit/closebrackets');
+      await import('codemirror/addon/edit/matchbrackets');
+    } catch (error) {
+      console.error('Failed to preload CodeMirror:', error);
+    }
+  }
+  return CodeMirrorLib;
+};
+
+// Start preloading immediately
+preloadCodeMirror();
+
+// Function to load language mode based on language
+const loadLanguageMode = async (language: string) => {
+  if (!CodeMirrorLib) return;
+  
+  try {
+    if (language === 'javascript' || language === 'typescript') {
+      await import('codemirror/mode/javascript/javascript');
+    } else if (language === 'python') {
+      await import('codemirror/mode/python/python');
+    } else if (language === 'java') {
+      await import('codemirror/mode/clike/clike');
+    }
+  } catch (error) {
+    console.error(`Failed to load language mode for ${language}:`, error);
+  }
+};
 
 const CodeEditor: React.FC<CodeEditorProps> = ({
   initialCode,
@@ -25,8 +68,8 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   const [activeTab, setActiveTab] = useState("editor");
   const editorRef = useRef<any>(null);
   const editorInstanceRef = useRef<any>(null);
-  const hasInitialized = useRef(false);
   const editorContainerRef = useRef<HTMLDivElement>(null);
+  const [editorInitialized, setEditorInitialized] = useState(false);
 
   // Update code when initialCode changes
   useEffect(() => {
@@ -36,35 +79,24 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     }
   }, [initialCode]);
 
-  // Initialize editor only once
+  // Initialize editor when component mounts
   useEffect(() => {
-    if (hasInitialized.current) return;
+    if (editorInitialized) return;
     
-    // Dynamically import CodeMirror components
-    const loadEditor = async () => {
+    const initializeEditor = async () => {
       try {
-        const CodeMirror = await import('codemirror');
-        
-        // Import mode based on language
-        if (language === 'javascript' || language === 'typescript') {
-          await import('codemirror/mode/javascript/javascript');
-        } else if (language === 'python') {
-          await import('codemirror/mode/python/python');
-        } else if (language === 'java') {
-          await import('codemirror/mode/clike/clike');
+        // Wait for CodeMirror to be loaded
+        const CodeMirror = await preloadCodeMirror();
+        if (!CodeMirror) {
+          console.error('CodeMirror failed to load');
+          return;
         }
         
-        // Import themes
-        await import('codemirror/theme/material.css');
-        await import('codemirror/theme/eclipse.css');
-        await import('codemirror/addon/edit/closebrackets');
-        await import('codemirror/addon/edit/matchbrackets');
-        await import('codemirror/addon/hint/show-hint');
-        await import('codemirror/addon/hint/javascript-hint');
-        await import('codemirror/lib/codemirror.css');
+        // Load the specific language mode
+        await loadLanguageMode(language);
         
         const textArea = editorRef.current;
-        if (textArea) {
+        if (textArea && !editorInstanceRef.current) {
           const editorInstance = CodeMirror.fromTextArea(textArea, {
             mode: language === 'typescript' ? 'text/typescript' : 
                   language === 'javascript' ? 'text/javascript' : 
@@ -89,15 +121,22 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
           
           editorInstanceRef.current = editorInstance;
           setEditorLoaded(true);
-          hasInitialized.current = true;
+          setEditorInitialized(true);
+          
+          // Ensure editor is properly sized
+          setTimeout(() => {
+            if (editorInstanceRef.current) {
+              editorInstanceRef.current.refresh();
+            }
+          }, 0);
         }
       } catch (error) {
-        console.error('Failed to load CodeMirror:', error);
+        console.error('Failed to initialize CodeMirror:', error);
         toast.error('Failed to load code editor. Please refresh the page.');
       }
     };
     
-    loadEditor();
+    initializeEditor();
     
     return () => {
       if (editorInstanceRef.current) {
@@ -116,14 +155,20 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
 
   // Update editor mode when language changes
   useEffect(() => {
-    if (editorInstanceRef.current) {
+    if (!editorInstanceRef.current) return;
+    
+    const updateLanguage = async () => {
+      await loadLanguageMode(language);
+      
       editorInstanceRef.current.setOption('mode', 
         language === 'typescript' ? 'text/typescript' : 
         language === 'javascript' ? 'text/javascript' : 
         language === 'python' ? 'text/x-python' :
         language === 'java' ? 'text/x-java' : 'text/plain'
       );
-    }
+    };
+    
+    updateLanguage();
   }, [language]);
 
   // Handle tab changes and ensure editor visibility
