@@ -3,6 +3,7 @@ import React from 'react';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Level {
   id: string;
@@ -24,6 +25,8 @@ const LevelSelector: React.FC<LevelSelectorProps> = ({
   selectedLevel,
   onLevelChange,
 }) => {
+  const isMobile = useIsMobile();
+  
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case 'beginner':
@@ -42,15 +45,15 @@ const LevelSelector: React.FC<LevelSelectorProps> = ({
   const selectedLevelInfo = levels.find(l => l.id === selectedLevel);
 
   return (
-    <div className="flex items-center gap-2">
+    <div className={`flex ${isMobile ? 'flex-col' : 'items-center'} gap-2`}>
       <Select
         value={selectedLevel}
         onValueChange={onLevelChange}
       >
-        <SelectTrigger className="w-[380px]">
+        <SelectTrigger className={`${isMobile ? 'w-full' : 'min-w-[400px] w-[400px]'}`}>
           <SelectValue placeholder="Select a coding level" />
         </SelectTrigger>
-        <SelectContent className="min-w-[380px]">
+        <SelectContent className={`${isMobile ? 'w-[calc(100vw-32px)]' : 'min-w-[400px]'}`}>
           <SelectGroup>
             <SelectLabel>Coding Levels</SelectLabel>
             {levels.map((level) => (
@@ -70,7 +73,7 @@ const LevelSelector: React.FC<LevelSelectorProps> = ({
       {selectedLevelInfo && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <Badge variant="outline" className="cursor-help">
+            <Badge variant="outline" className={`cursor-help ${isMobile ? 'self-start' : ''}`}>
               {selectedLevelInfo.timeEstimate}
             </Badge>
           </TooltipTrigger>
