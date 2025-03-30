@@ -47,15 +47,15 @@ const LevelSelector: React.FC<LevelSelectorProps> = ({
         value={selectedLevel}
         onValueChange={onLevelChange}
       >
-        <SelectTrigger className="w-[380px] pr-8">
-          <SelectValue placeholder="Select a coding level" className="pr-6" />
+        <SelectTrigger className="w-[380px]">
+          <SelectValue placeholder="Select a coding level" />
         </SelectTrigger>
         <SelectContent className="min-w-[380px]">
           <SelectGroup>
             <SelectLabel>Coding Levels</SelectLabel>
             {levels.map((level) => (
               <SelectItem key={level.id} value={level.id} className="flex-nowrap whitespace-nowrap">
-                <div className="flex items-center gap-2 whitespace-nowrap w-full pr-6">
+                <div className="flex items-center gap-2 whitespace-nowrap w-full mr-20">
                   <span className="flex-grow">{level.name}</span>
                   <Badge className={`${getDifficultyColor(level.difficulty)} text-white text-xs shrink-0 ml-2`}>
                     {level.difficulty}
