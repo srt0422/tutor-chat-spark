@@ -47,10 +47,10 @@ const LevelSelector: React.FC<LevelSelectorProps> = ({
         value={selectedLevel}
         onValueChange={onLevelChange}
       >
-        <SelectTrigger className="w-[220px]">
+        <SelectTrigger className="w-[280px]">
           <SelectValue placeholder="Select a coding level" />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="min-w-[280px]">
           <SelectGroup>
             <SelectLabel>Coding Levels</SelectLabel>
             {levels.map((level) => (
