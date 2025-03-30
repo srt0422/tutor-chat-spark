@@ -87,13 +87,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     <div className="flex flex-col h-full">
       <div className="bg-primary/10 px-4 py-2 border-b">
         <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <Avatar className="h-8 w-8 mr-2">
-              <img src="/lovable-uploads/160ce008-4076-4510-88bd-a21f3249d913.png" alt="CodeSignal Logo" />
-            </Avatar>
-            <h2 className="text-lg font-semibold">Industry Coding Tutor</h2>
-          </div>
-          
           {/* Tutoring Session Controls */}
           {currentTutorSession && (
             <div className="text-xs text-muted-foreground">
