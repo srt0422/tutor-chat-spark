@@ -33,6 +33,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   const editorRef = useRef<any>(null);
   const editorInstanceRef = useRef<any>(null);
   const [editorInitialized, setEditorInitialized] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Initialize editor when component mounts
   useEffect(() => {
@@ -71,6 +72,14 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
           setTimeout(() => {
             if (editorInstanceRef.current) {
               editorInstanceRef.current.refresh();
+              
+              // Set the height of the CodeMirror editor to fill its container
+              if (containerRef.current) {
+                const cmElement = containerRef.current.querySelector('.CodeMirror');
+                if (cmElement) {
+                  (cmElement as HTMLElement).style.height = '100%';
+                }
+              }
             }
           }, 0);
         }
@@ -121,12 +130,20 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       setTimeout(() => {
         editorInstanceRef.current.refresh();
         editorInstanceRef.current.focus();
+
+        // Set the height of the CodeMirror editor to fill its container
+        if (containerRef.current) {
+          const cmElement = containerRef.current.querySelector('.CodeMirror');
+          if (cmElement) {
+            (cmElement as HTMLElement).style.height = '100%';
+          }
+        }
       }, 100);
     }
   }, []);
 
   return (
-    <div className="h-full">
+    <div ref={containerRef} className="h-full w-full">
       <textarea ref={editorRef} className="hidden" />
       {!editorLoaded && (
         <div className="p-4 text-muted-foreground">Loading editor...</div>

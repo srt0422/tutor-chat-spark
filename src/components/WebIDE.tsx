@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { PlayIcon, DownloadIcon, SaveIcon } from 'lucide-react';
@@ -23,7 +23,6 @@ const WebIDE: React.FC<WebIDEProps> = ({
 }) => {
   const [code, setCode] = useState(initialCode);
   const [activeTab, setActiveTab] = useState("editor");
-  const editorContainerRef = useRef<HTMLDivElement>(null);
 
   const handleCodeChange = (newCode: string) => {
     setCode(newCode);
@@ -82,8 +81,8 @@ const WebIDE: React.FC<WebIDEProps> = ({
               </Button>
             </div>
           </div>
-          <TabsContent value="editor" className="p-0 m-0">
-            <div ref={editorContainerRef} className="relative h-[calc(100vh-240px)]">
+          <TabsContent value="editor" className="p-0 m-0 h-[calc(100vh-240px)]">
+            <div className="h-full w-full">
               {activeTab === "editor" && (
                 <CodeEditor 
                   initialCode={initialCode}
