@@ -26,6 +26,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   const editorRef = useRef<any>(null);
   const editorInstanceRef = useRef<any>(null);
   const hasInitialized = useRef(false);
+  const editorContainerRef = useRef<HTMLDivElement>(null);
 
   // Update code when initialCode changes
   useEffect(() => {
@@ -125,13 +126,17 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     }
   }, [language]);
 
-  // Handle tab changes
+  // Handle tab changes and ensure editor visibility
   useEffect(() => {
-    // When switching back to the editor tab, ensure the editor is properly sized
+    // When switching back to the editor tab, ensure the editor is properly sized and visible
     if (activeTab === "editor" && editorInstanceRef.current) {
+      // Use a short delay to ensure the DOM has updated
       setTimeout(() => {
-        editorInstanceRef.current.refresh();
-      }, 10);
+        if (editorInstanceRef.current) {
+          editorInstanceRef.current.refresh();
+          editorInstanceRef.current.focus();
+        }
+      }, 50);
     }
   }, [activeTab]);
 
@@ -188,7 +193,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
             </div>
           </div>
           <TabsContent value="editor" className="p-0 m-0">
-            <div className="relative h-[calc(100vh-240px)]">
+            <div ref={editorContainerRef} className="relative h-[calc(100vh-240px)]">
               <textarea ref={editorRef} className="hidden" />
               {!editorLoaded && (
                 <div className="p-4 text-muted-foreground">Loading editor...</div>
