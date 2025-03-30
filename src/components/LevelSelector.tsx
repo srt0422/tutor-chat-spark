@@ -56,7 +56,7 @@ const LevelSelector: React.FC<LevelSelectorProps> = ({
             {levels.map((level) => (
               <SelectItem key={level.id} value={level.id} className="flex-nowrap whitespace-nowrap">
                 <div className="flex items-center gap-2 whitespace-nowrap">
-                  <span className="truncate">{level.name}</span>
+                  <span className="flex-grow">{level.name}</span>
                   <Badge className={`${getDifficultyColor(level.difficulty)} text-white text-xs shrink-0`}>
                     {level.difficulty}
                   </Badge>
