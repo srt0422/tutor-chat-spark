@@ -22,6 +22,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
 }) => {
   const [code, setCode] = useState(initialCode);
   const [editorLoaded, setEditorLoaded] = useState(false);
+  const [activeTab, setActiveTab] = useState("editor");
   const editorRef = useRef<any>(null);
   const editorInstanceRef = useRef<any>(null);
   const hasInitialized = useRef(false);
@@ -124,6 +125,16 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     }
   }, [language]);
 
+  // Handle tab changes
+  useEffect(() => {
+    // When switching back to the editor tab, ensure the editor is properly sized
+    if (activeTab === "editor" && editorInstanceRef.current) {
+      setTimeout(() => {
+        editorInstanceRef.current.refresh();
+      }, 10);
+    }
+  }, [activeTab]);
+
   const handleRun = () => {
     onRun();
     toast.success('Code executed!');
@@ -148,10 +159,14 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     toast.success('Code downloaded!');
   };
 
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+  };
+
   return (
     <div className="flex flex-col h-full border rounded-md shadow-sm">
       <div className="border-b bg-secondary/40 p-2">
-        <Tabs defaultValue="editor">
+        <Tabs defaultValue="editor" value={activeTab} onValueChange={handleTabChange}>
           <div className="flex justify-between items-center">
             <TabsList>
               <TabsTrigger value="editor">Editor</TabsTrigger>
