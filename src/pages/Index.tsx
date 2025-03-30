@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import ChatInterface, { Message } from '@/components/ChatInterface';
@@ -35,7 +34,6 @@ const Index = () => {
   } | null>(null);
 
   const handleSendMessage = async (message: string) => {
-    // Add user message to chat
     const userMessage: Message = {
       id: uuidv4(),
       role: 'user',
@@ -49,16 +47,13 @@ const Index = () => {
     try {
       let response;
       
-      // If we're in a tutoring session, use the tutor service
       if (tutorSession) {
-        // Prepare messages for tutor service
         const messagesForTutor = messages
-          .slice(-6) // Only use the last 6 messages for context
+          .slice(-6)
           .map((msg) => ({ role: msg.role, content: msg.content }));
         
         messagesForTutor.push({ role: 'user', content: message });
         
-        // Get tutor response
         response = await sendTutorMessage(
           messagesForTutor,
           tutorSession.topic,
@@ -66,14 +61,12 @@ const Index = () => {
           tutorSession.mode
         );
       } else {
-        // Use regular AI service if not in tutoring mode
         const messagesForAI = messages
-          .slice(-6) // Only use the last 6 messages for context
+          .slice(-6)
           .map((msg) => ({ role: msg.role, content: msg.content }));
         
         messagesForAI.push({ role: 'user', content: message });
         
-        // Get AI response - FIX: Create proper AIChatRequest object
         const aiRequest: AIChatRequest = {
           messages: messagesForAI
         };
@@ -81,7 +74,6 @@ const Index = () => {
         response = await getAIResponse(aiRequest);
       }
       
-      // Add AI response to chat
       const aiMessage: Message = {
         id: uuidv4(),
         role: 'assistant',
@@ -106,7 +98,6 @@ const Index = () => {
       const example = codeExamples[exampleKey];
       setCode(example.code);
       
-      // Add assistant message explaining the code
       const assistantMessage: Message = {
         id: uuidv4(),
         role: 'assistant',
@@ -127,8 +118,6 @@ const Index = () => {
 
   const handleRunCode = () => {
     try {
-      // For safety, we're not actually executing the code
-      // In a real implementation, you might use a sandboxed environment
       console.log('Code execution requested:', code);
       toast.success('Code execution simulated!');
     } catch (error) {
@@ -140,14 +129,11 @@ const Index = () => {
   const handleLevelChange = (levelId: string) => {
     setSelectedLevel(levelId);
     
-    // Reset and start timer when level changes
     setTimerActive(true);
     setTimerStartTime(Date.now());
     
-    // Find the selected level info
     const level = codingLevels.find(l => l.id === levelId);
     
-    // Add assistant message with time expectations
     if (level) {
       const assistantMessage: Message = {
         id: uuidv4(),
@@ -162,31 +148,30 @@ const Index = () => {
     toast.info(`Switched to ${codingLevels.find(l => l.id === levelId)?.name}`);
   };
 
-  const handleTimerToggle = () => {
+  const handleTimerToggle = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+    
     setTimerActive(prev => !prev);
     
     if (!timerActive) {
-      // Starting the timer
       setTimerStartTime(Date.now());
       toast.info('Timer started');
     } else {
-      // Stopping the timer
       toast.info('Timer paused');
     }
   };
 
   const handleStartTutoring = (topic: string, level: number, mode: 'guided' | 'unguided') => {
-    // Create a new tutoring session
     setTutorSession({
       topic,
       level,
       mode
     });
     
-    // Get the session data
     const session = createTutorSession(topic, level, mode);
     
-    // Reset messages and add the initial tutor message
     setMessages([
       {
         id: uuidv4(),
@@ -196,7 +181,6 @@ const Index = () => {
       }
     ]);
     
-    // Map level to the appropriate format for the code editor
     const levelMapping: Record<number, string> = {
       1: 'level-1',
       2: 'level-2',
@@ -204,10 +188,8 @@ const Index = () => {
       4: 'level-4'
     };
     
-    // Update selected level in the editor
     setSelectedLevel(levelMapping[level] || 'level-1');
     
-    // Reset timer
     setTimerActive(true);
     setTimerStartTime(Date.now());
     
@@ -218,7 +200,6 @@ const Index = () => {
   return (
     <Layout>
       <ResizablePanelGroup direction="horizontal" className="min-h-[calc(100vh-128px)]">
-        {/* Chat Panel */}
         <ResizablePanel defaultSize={40} minSize={30}>
           <div className="h-full flex flex-col">
             <ChatInterface 
@@ -234,7 +215,6 @@ const Index = () => {
         
         <ResizableHandle />
         
-        {/* Code Editor Panel */}
         <ResizablePanel defaultSize={60} minSize={40}>
           <div className="h-full flex flex-col">
             <div className="flex justify-between items-center px-4 py-2 border-b">
