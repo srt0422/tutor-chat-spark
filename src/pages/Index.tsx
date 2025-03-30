@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import ChatInterface, { Message } from '@/components/ChatInterface';
-import CodeEditor from '@/components/CodeEditor';
+import WebIDE from '@/components/WebIDE';
 import LevelSelector from '@/components/LevelSelector';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
@@ -130,7 +129,6 @@ const Index = () => {
   const handleLevelChange = (levelId: string) => {
     setSelectedLevel(levelId);
     
-    // Only update timer if it's not already active
     if (!timerActive) {
       setTimerActive(true);
       setTimerStartTime(Date.now());
@@ -155,7 +153,7 @@ const Index = () => {
   const handleTimerToggle = (e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault();
-      e.stopPropagation(); // Ensure event doesn't propagate
+      e.stopPropagation();
     }
     
     setTimerActive(prev => !prev);
@@ -235,7 +233,7 @@ const Index = () => {
               />
             </div>
             <div className="flex-1">
-              <CodeEditor 
+              <WebIDE 
                 initialCode={code} 
                 onChange={handleCodeChange} 
                 onRun={handleRunCode}

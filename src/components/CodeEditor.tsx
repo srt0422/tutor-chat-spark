@@ -1,9 +1,5 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { PlayIcon, DownloadIcon, SaveIcon } from 'lucide-react';
-import { toast } from "sonner";
 import CodeMirror from 'codemirror';
 
 // Import required CodeMirror styles
@@ -23,7 +19,6 @@ import 'codemirror/mode/clike/clike';
 interface CodeEditorProps {
   initialCode: string;
   onChange: (code: string) => void;
-  onRun: () => void;
   language: string;
   darkMode?: boolean;
 }
@@ -31,25 +26,13 @@ interface CodeEditorProps {
 const CodeEditor: React.FC<CodeEditorProps> = ({
   initialCode,
   onChange,
-  onRun,
   language,
   darkMode = false,
 }) => {
-  const [code, setCode] = useState(initialCode);
   const [editorLoaded, setEditorLoaded] = useState(false);
-  const [activeTab, setActiveTab] = useState("editor");
   const editorRef = useRef<any>(null);
   const editorInstanceRef = useRef<any>(null);
-  const editorContainerRef = useRef<HTMLDivElement>(null);
   const [editorInitialized, setEditorInitialized] = useState(false);
-
-  // Update code when initialCode changes
-  useEffect(() => {
-    if (editorInstanceRef.current && initialCode !== code) {
-      editorInstanceRef.current.setValue(initialCode);
-      setCode(initialCode);
-    }
-  }, [initialCode]);
 
   // Initialize editor when component mounts
   useEffect(() => {
@@ -77,7 +60,6 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
           editorInstance.setValue(initialCode);
           editorInstance.on('change', (instance: any) => {
             const newCode = instance.getValue();
-            setCode(newCode);
             onChange(newCode);
           });
           
@@ -94,7 +76,6 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
         }
       } catch (error) {
         console.error('Failed to initialize CodeMirror:', error);
-        toast.error('Failed to load code editor. Please refresh the page.');
       }
     };
     
@@ -107,6 +88,13 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       }
     };
   }, []);
+
+  // Update editor when initialCode changes
+  useEffect(() => {
+    if (editorInstanceRef.current && editorInitialized) {
+      editorInstanceRef.current.setValue(initialCode);
+    }
+  }, [initialCode]);
 
   // Update editor theme when darkMode changes
   useEffect(() => {
@@ -127,87 +115,22 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     );
   }, [language]);
 
-  // Handle tab changes and ensure editor visibility
+  // Refresh editor on mount and after DOM updates
   useEffect(() => {
-    // When switching back to the editor tab, ensure the editor is properly sized and visible
-    if (activeTab === "editor" && editorInstanceRef.current) {
-      // Use a short delay to ensure the DOM has updated
+    if (editorInstanceRef.current) {
       setTimeout(() => {
-        if (editorInstanceRef.current) {
-          editorInstanceRef.current.refresh();
-          editorInstanceRef.current.focus();
-        }
+        editorInstanceRef.current.refresh();
+        editorInstanceRef.current.focus();
       }, 100);
     }
-  }, [activeTab]);
-
-  const handleRun = () => {
-    onRun();
-    toast.success('Code executed!');
-  };
-
-  const handleSave = () => {
-    // This would typically save to a database or local storage
-    toast.success('Code saved successfully!');
-  };
-
-  const handleDownload = () => {
-    const blob = new Blob([code], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `code.${language === 'typescript' ? 'ts' : 
-                          language === 'javascript' ? 'js' : 
-                          language === 'python' ? 'py' : 
-                          language === 'java' ? 'java' : 'txt'}`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success('Code downloaded!');
-  };
-
-  const handleTabChange = (value: string) => {
-    setActiveTab(value);
-  };
+  }, []);
 
   return (
-    <div className="flex flex-col h-full border rounded-md shadow-sm">
-      <div className="border-b bg-secondary/40 p-2">
-        <Tabs defaultValue="editor" value={activeTab} onValueChange={handleTabChange}>
-          <div className="flex justify-between items-center">
-            <TabsList>
-              <TabsTrigger value="editor">Editor</TabsTrigger>
-              <TabsTrigger value="output">Output</TabsTrigger>
-            </TabsList>
-            <div className="flex space-x-2">
-              <Button variant="outline" size="sm" onClick={handleRun}>
-                <PlayIcon className="h-4 w-4 mr-1" />
-                Run
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleSave}>
-                <SaveIcon className="h-4 w-4 mr-1" />
-                Save
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleDownload}>
-                <DownloadIcon className="h-4 w-4 mr-1" />
-                Download
-              </Button>
-            </div>
-          </div>
-          <TabsContent value="editor" className="p-0 m-0">
-            <div ref={editorContainerRef} className="relative h-[calc(100vh-240px)]">
-              <textarea ref={editorRef} className="hidden" />
-              {!editorLoaded && (
-                <div className="p-4 text-muted-foreground">Loading editor...</div>
-              )}
-            </div>
-          </TabsContent>
-          <TabsContent value="output" className="mt-0">
-            <div className="bg-black text-green-400 p-4 font-mono h-[calc(100vh-240px)] overflow-auto">
-              <p>// Output will appear here when you run your code</p>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </div>
+    <div className="h-full">
+      <textarea ref={editorRef} className="hidden" />
+      {!editorLoaded && (
+        <div className="p-4 text-muted-foreground">Loading editor...</div>
+      )}
     </div>
   );
 };
