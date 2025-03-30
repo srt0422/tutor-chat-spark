@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { PlayIcon, DownloadIcon, SaveIcon } from 'lucide-react';
@@ -22,9 +22,22 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
 }) => {
   const [code, setCode] = useState(initialCode);
   const [editorLoaded, setEditorLoaded] = useState(false);
-  const [editor, setEditor] = useState<any>(null);
+  const editorRef = useRef<any>(null);
+  const editorInstanceRef = useRef<any>(null);
+  const hasInitialized = useRef(false);
 
+  // Update code when initialCode changes
   useEffect(() => {
+    if (editorInstanceRef.current && initialCode !== code) {
+      editorInstanceRef.current.setValue(initialCode);
+      setCode(initialCode);
+    }
+  }, [initialCode]);
+
+  // Initialize editor only once
+  useEffect(() => {
+    if (hasInitialized.current) return;
+    
     // Dynamically import CodeMirror components
     const loadEditor = async () => {
       try {
@@ -48,7 +61,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
         await import('codemirror/addon/hint/javascript-hint');
         await import('codemirror/lib/codemirror.css');
         
-        const textArea = document.getElementById('code-editor') as HTMLTextAreaElement;
+        const textArea = editorRef.current;
         if (textArea) {
           const editorInstance = CodeMirror.fromTextArea(textArea, {
             mode: language === 'typescript' ? 'text/typescript' : 
@@ -72,8 +85,9 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
             onChange(newCode);
           });
           
-          setEditor(editorInstance);
+          editorInstanceRef.current = editorInstance;
           setEditorLoaded(true);
+          hasInitialized.current = true;
         }
       } catch (error) {
         console.error('Failed to load CodeMirror:', error);
@@ -84,17 +98,31 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     loadEditor();
     
     return () => {
-      if (editor) {
-        editor.toTextArea();
+      if (editorInstanceRef.current) {
+        editorInstanceRef.current.toTextArea();
+        editorInstanceRef.current = null;
       }
     };
-  }, [initialCode, onChange, language, darkMode]);
+  }, []);
 
+  // Update editor theme when darkMode changes
   useEffect(() => {
-    if (editor && darkMode !== undefined) {
-      editor.setOption('theme', darkMode ? 'material' : 'eclipse');
+    if (editorInstanceRef.current && darkMode !== undefined) {
+      editorInstanceRef.current.setOption('theme', darkMode ? 'material' : 'eclipse');
     }
-  }, [darkMode, editor]);
+  }, [darkMode]);
+
+  // Update editor mode when language changes
+  useEffect(() => {
+    if (editorInstanceRef.current) {
+      editorInstanceRef.current.setOption('mode', 
+        language === 'typescript' ? 'text/typescript' : 
+        language === 'javascript' ? 'text/javascript' : 
+        language === 'python' ? 'text/x-python' :
+        language === 'java' ? 'text/x-java' : 'text/plain'
+      );
+    }
+  }, [language]);
 
   const handleRun = () => {
     onRun();
@@ -145,8 +173,8 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
             </div>
           </div>
           <TabsContent value="editor" className="p-0 m-0">
-            <div className="relative overflow-hidden h-[calc(100vh-240px)]">
-              <textarea id="code-editor" className="hidden" />
+            <div className="relative h-[calc(100vh-240px)]">
+              <textarea ref={editorRef} className="hidden" />
               {!editorLoaded && (
                 <div className="p-4 text-muted-foreground">Loading editor...</div>
               )}

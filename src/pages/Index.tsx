@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import ChatInterface, { Message } from '@/components/ChatInterface';
@@ -129,8 +130,11 @@ const Index = () => {
   const handleLevelChange = (levelId: string) => {
     setSelectedLevel(levelId);
     
-    setTimerActive(true);
-    setTimerStartTime(Date.now());
+    // Only update timer if it's not already active
+    if (!timerActive) {
+      setTimerActive(true);
+      setTimerStartTime(Date.now());
+    }
     
     const level = codingLevels.find(l => l.id === levelId);
     
@@ -151,6 +155,7 @@ const Index = () => {
   const handleTimerToggle = (e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault();
+      e.stopPropagation(); // Ensure event doesn't propagate
     }
     
     setTimerActive(prev => !prev);
@@ -229,7 +234,7 @@ const Index = () => {
                 onToggle={handleTimerToggle} 
               />
             </div>
-            <div className="flex-1 relative">
+            <div className="flex-1">
               <CodeEditor 
                 initialCode={code} 
                 onChange={handleCodeChange} 

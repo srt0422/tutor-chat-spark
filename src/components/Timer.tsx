@@ -7,7 +7,7 @@ import { Clock, Pause, Play } from 'lucide-react';
 interface TimerProps {
   active: boolean;
   startTime: number | null;
-  onToggle: () => void;
+  onToggle: (e?: React.MouseEvent) => void;
 }
 
 const Timer: React.FC<TimerProps> = ({ active, startTime, onToggle }) => {
@@ -45,10 +45,11 @@ const Timer: React.FC<TimerProps> = ({ active, startTime, onToggle }) => {
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  // Use stopPropagation to prevent the click event from bubbling up
+  // Make sure to stop propagation
   const handleToggleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
-    onToggle();
+    onToggle(e);
   };
 
   return (
