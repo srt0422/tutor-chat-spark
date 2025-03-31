@@ -1,5 +1,4 @@
-
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import CodeMirror from 'codemirror';
 
 // Import required CodeMirror styles
@@ -10,144 +9,166 @@ import 'codemirror/theme/eclipse.css';
 // Import CodeMirror addons
 import 'codemirror/addon/edit/closebrackets';
 import 'codemirror/addon/edit/matchbrackets';
+import 'codemirror/addon/hint/show-hint';
+import 'codemirror/addon/hint/javascript-hint';
+import 'codemirror/addon/hint/show-hint.css';
+import 'codemirror/addon/comment/comment';
+import 'codemirror/addon/selection/active-line';
 
 // Import CodeMirror language modes
 import 'codemirror/mode/javascript/javascript';
 import 'codemirror/mode/python/python';
 import 'codemirror/mode/clike/clike';
+import 'codemirror/mode/go/go';
 
 interface CodeEditorProps {
   initialCode: string;
   onChange: (code: string) => void;
-  language: string;
+  language?: string;
   darkMode?: boolean;
 }
 
-const CodeEditor: React.FC<CodeEditorProps> = ({
-  initialCode,
-  onChange,
-  language,
-  darkMode = false,
+const CodeEditor: React.FC<CodeEditorProps> = ({ 
+  initialCode, 
+  onChange, 
+  language = 'javascript',
+  darkMode = false
 }) => {
-  const [editorLoaded, setEditorLoaded] = useState(false);
-  const editorRef = useRef<any>(null);
-  const editorInstanceRef = useRef<any>(null);
-  const [editorInitialized, setEditorInitialized] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
+  const editor = useRef<CodeMirror.Editor | null>(null);
+  const [currentLanguage, setCurrentLanguage] = useState(language);
+  const [currentCode, setCurrentCode] = useState(initialCode);
 
-  // Initialize editor when component mounts
+  // Map language prop to CodeMirror mode
+  const getModeForLanguage = (lang: string): string => {
+    switch (lang.toLowerCase()) {
+      case 'javascript':
+      case 'js':
+        return 'text/javascript';
+      case 'python':
+      case 'py':
+        return 'text/x-python';
+      case 'java':
+        return 'text/x-java';
+      case 'cpp':
+      case 'c++':
+        return 'text/x-c++src';
+      case 'c':
+        return 'text/x-csrc';
+      case 'go':
+        return 'text/x-go';
+      default:
+        return 'text/javascript';
+    }
+  };
+
+  // Initialize CodeMirror
   useEffect(() => {
-    if (editorInitialized) return;
-    
-    const initializeEditor = () => {
+    if (editorRef.current && !editor.current) {
       try {
-        const textArea = editorRef.current;
-        if (textArea && !editorInstanceRef.current) {
-          const editorInstance = CodeMirror.fromTextArea(textArea, {
-            mode: language === 'typescript' ? 'text/typescript' : 
-                  language === 'javascript' ? 'text/javascript' : 
-                  language === 'python' ? 'text/x-python' :
-                  language === 'java' ? 'text/x-java' : 'text/plain',
-            theme: darkMode ? 'material' : 'eclipse',
-            lineNumbers: true,
-            autoCloseBrackets: true,
-            matchBrackets: true,
-            indentUnit: 2,
-            tabSize: 2,
-            lineWrapping: true,
-            autofocus: true,
-          });
-          
-          editorInstance.setValue(initialCode);
-          editorInstance.on('change', (instance: any) => {
-            const newCode = instance.getValue();
-            onChange(newCode);
-          });
-          
-          editorInstanceRef.current = editorInstance;
-          setEditorLoaded(true);
-          setEditorInitialized(true);
-          
-          // Ensure editor is properly sized
-          setTimeout(() => {
-            if (editorInstanceRef.current) {
-              editorInstanceRef.current.refresh();
-              
-              // Set the height of the CodeMirror editor to fill its container
-              if (containerRef.current) {
-                const cmElement = containerRef.current.querySelector('.CodeMirror');
-                if (cmElement) {
-                  (cmElement as HTMLElement).style.height = '100%';
-                }
-              }
-            }
-          }, 0);
-        }
-      } catch (error) {
-        console.error('Failed to initialize CodeMirror:', error);
+        // Import language modes dynamically to ensure they're loaded
+        require('codemirror/mode/javascript/javascript');
+        require('codemirror/mode/python/python');
+        require('codemirror/mode/clike/clike');
+        require('codemirror/mode/go/go');
+        
+        // Create the CodeMirror instance with proper configuration
+        editor.current = CodeMirror(editorRef.current, {
+          value: initialCode || '',
+          mode: getModeForLanguage(language),
+          theme: darkMode ? 'material' : 'eclipse',
+          lineNumbers: true,
+          autoCloseBrackets: true,
+          matchBrackets: true,
+          indentUnit: 2,
+          tabSize: 2,
+          styleActiveLine: true,
+          extraKeys: {
+            'Tab': (cm) => {
+              cm.replaceSelection('  ');
+            },
+            'Ctrl-Space': 'autocomplete'
+          }
+        });
+
+        // Register change handler
+        editor.current.on('change', (instance) => {
+          const newValue = instance.getValue();
+          setCurrentCode(newValue);
+          onChange(newValue);
+        });
+      } catch (err) {
+        console.error('Error initializing CodeMirror:', err);
       }
-    };
-    
-    initializeEditor();
-    
+    }
+
     return () => {
-      if (editorInstanceRef.current) {
-        editorInstanceRef.current.toTextArea();
-        editorInstanceRef.current = null;
+      // Clean up
+      if (editor.current) {
+        // No explicit destroy method needed
+        editor.current = null;
       }
     };
+  // Only run once on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Update editor when initialCode changes
+  // Update content when initialCode prop changes
   useEffect(() => {
-    if (editorInstanceRef.current && editorInitialized) {
-      editorInstanceRef.current.setValue(initialCode);
+    if (editor.current && initialCode !== currentCode) {
+      editor.current.setValue(initialCode);
+      setCurrentCode(initialCode);
     }
-  }, [initialCode]);
+  }, [initialCode, currentCode]);
 
-  // Update editor theme when darkMode changes
+  // Update mode when language prop changes
   useEffect(() => {
-    if (editorInstanceRef.current && darkMode !== undefined) {
-      editorInstanceRef.current.setOption('theme', darkMode ? 'material' : 'eclipse');
+    if (editor.current && language !== currentLanguage) {
+      editor.current.setOption('mode', getModeForLanguage(language));
+      setCurrentLanguage(language);
+    }
+  }, [language, currentLanguage]);
+
+  // Update theme when darkMode changes
+  useEffect(() => {
+    if (editor.current) {
+      editor.current.setOption('theme', darkMode ? 'material' : 'eclipse');
     }
   }, [darkMode]);
 
-  // Update editor mode when language changes
+  // Handle keyboard shortcuts
   useEffect(() => {
-    if (!editorInstanceRef.current) return;
-    
-    editorInstanceRef.current.setOption('mode', 
-      language === 'typescript' ? 'text/typescript' : 
-      language === 'javascript' ? 'text/javascript' : 
-      language === 'python' ? 'text/x-python' :
-      language === 'java' ? 'text/x-java' : 'text/plain'
-    );
-  }, [language]);
-
-  // Refresh editor on mount and after DOM updates
-  useEffect(() => {
-    if (editorInstanceRef.current) {
-      setTimeout(() => {
-        editorInstanceRef.current.refresh();
-        editorInstanceRef.current.focus();
-
-        // Set the height of the CodeMirror editor to fill its container
-        if (containerRef.current) {
-          const cmElement = containerRef.current.querySelector('.CodeMirror');
-          if (cmElement) {
-            (cmElement as HTMLElement).style.height = '100%';
-          }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Auto-indent selected code with Tab
+      if (e.key === 'Tab' && editor.current && editor.current.somethingSelected()) {
+        e.preventDefault();
+        editor.current.indentSelection('smart');
+      }
+      
+      // Run code with Ctrl+Enter or Cmd+Enter
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        // We would trigger code execution here if we had that capability
+      }
+      
+      // Comment/uncomment with Ctrl+/ or Cmd+/
+      if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+        e.preventDefault();
+        if (editor.current) {
+          editor.current.toggleComment();
         }
-      }, 100);
-    }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   return (
-    <div ref={containerRef} className="h-full w-full">
-      <textarea ref={editorRef} className="hidden" />
-      {!editorLoaded && (
-        <div className="p-4 text-muted-foreground">Loading editor...</div>
-      )}
+    <div className="w-full h-full">
+      <div ref={editorRef} className="w-full h-full" />
     </div>
   );
 };

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -72,10 +71,12 @@ const LevelSelector: React.FC<LevelSelectorProps> = ({
       
       {selectedLevelInfo && (
         <Tooltip>
-          <TooltipTrigger asChild>
-            <Badge variant="outline" className={`cursor-help ${isMobile ? 'self-start' : ''}`}>
-              {selectedLevelInfo.timeEstimate}
-            </Badge>
+          <TooltipTrigger>
+            <div className={`cursor-help ${isMobile ? 'self-start' : ''}`}>
+              <Badge variant="outline">
+                {selectedLevelInfo.timeEstimate}
+              </Badge>
+            </div>
           </TooltipTrigger>
           <TooltipContent>
             <p className="font-medium">{selectedLevelInfo.name}</p>
